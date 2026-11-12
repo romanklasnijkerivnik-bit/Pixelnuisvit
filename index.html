@@ -1,0 +1,523 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIMP — Місія: врятувати піксельний світ</title>
+<style>
+:root {
+  --bg: #10172d;
+  --panel: #1b2744;
+  --accent: #55d6ff;
+  --purple: #a78bfa;
+  --green: #43d9a3;
+  --text: #f4f7ff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at top, #263c67, var(--bg) 65%);
+  color: var(--text);
+  min-height: 100vh;
+}
+.container {
+  width: min(900px, 94%);
+  margin: auto;
+  padding: 25px 0 50px;
+}
+header { text-align: center; padding: 25px 10px; }
+.logo { font-size: 55px; }
+h1 { font-size: clamp(27px, 5vw, 43px); margin: 10px 0; }
+.subtitle { color: #b8c8e8; line-height: 1.6; }
+.panel {
+  background: var(--panel);
+  border: 1px solid #3d5279;
+  border-radius: 20px;
+  padding: 25px;
+  margin: 18px 0;
+  box-shadow: 0 10px 35px #0004;
+}
+h2 { color: var(--accent); }
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 13px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: .2s;
+}
+button:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.primary {
+  background: linear-gradient(100deg,#38bdf8,#8b5cf6);
+  color: white;
+}
+.answer {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #293957;
+  color: white;
+  border: 1px solid #53688d;
+  margin: 10px 0;
+}
+.answer:hover { background: #3c5075; }
+.answer:disabled { cursor: default; opacity: .8; }
+.correct { background: #176b50 !important; border-color: var(--green); }
+.wrong { background: #843d4b !important; border-color: #ff8292; }
+.topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #c6d4ee;
+}
+.progress {
+  background: #354361;
+  height: 12px;
+  border-radius: 20px;
+  overflow: hidden;
+  margin: 15px 0;
+}
+.bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg,#39d6bd,#60a5fa);
+  transition: .4s;
+}
+.station {
+  color: #b8c8e8;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.question {
+  font-size: 22px;
+  line-height: 1.5;
+  margin: 20px 0;
+}
+.feedback {
+  padding: 13px;
+  border-radius: 10px;
+  margin-top: 15px;
+  display: none;
+  line-height: 1.5;
+}
+.info { background: #263c60; padding: 15px; border-radius: 12px; line-height: 1.6; }
+.hidden { display: none !important; }
+.score {
+  font-size: 55px;
+  font-weight: bold;
+  color: var(--green);
+  text-align: center;
+}
+.pixel {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  margin: 3px;
+  image-rendering: pixelated;
+}
+footer { text-align: center; color: #8fa2c5; font-size: 13px; margin-top: 30px; }
+@media(max-width:550px) {
+  .panel { padding: 18px; }
+  .question { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="logo">🎮</div>
+  <h1>GIMP: Місія — врятувати піксельний світ</h1>
+  <p class="subtitle">
+    Інтерактивний квест з інформатики для учнів 6 класу.<br>
+    Пройди 5 випробувань і стань майстром растрової графіки!
+  </p>
+</header>
+
+<!-- СТАРТОВИЙ ЕКРАН -->
+<section id="start" class="panel">
+  <h2>🚀 Твоя місія починається!</h2>
+  <p>
+    У цифровому світі сталася катастрофа!
+    Зникли пікселі, зображення втратили чіткість,
+    а файли переплутали свої формати.
+  </p>
+  <p>
+    Тобі потрібно пройти п'ять станцій,
+    виконати завдання та відновити цифровий світ.
+  </p>
+  <div class="info">
+    🧩 15 завдань<br>
+    ⭐ Максимум 150 балів<br>
+    🏆 Персональний результат наприкінці
+  </div>
+  <br>
+  <button class="primary" onclick="startGame()">ПОЧАТИ КВЕСТ →</button>
+</section>
+
+<!-- ІГРОВИЙ ЕКРАН -->
+<section id="game" class="panel hidden">
+  <div class="topline">
+    <span id="stationName">Станція 1</span>
+    <span>⭐ Бали: <b id="score">0</b></span>
+  </div>
+
+  <div class="progress">
+    <div class="bar" id="bar"></div>
+  </div>
+
+  <p id="counter" class="station">Завдання 1 із 15</p>
+  <div id="question" class="question"></div>
+  <div id="answers"></div>
+
+  <div id="feedback" class="feedback"></div>
+
+  <br>
+  <button id="next" class="primary hidden" onclick="nextQuestion()">
+    НАСТУПНЕ ЗАВДАННЯ →
+  </button>
+</section>
+
+<!-- ФІНАЛ -->
+<section id="finish" class="panel hidden">
+  <h2 style="text-align:center">🏆 Місію виконано!</h2>
+  <p style="text-align:center">Ти відновив піксельний світ!</p>
+  <div class="score" id="finalScore">0</div>
+  <p style="text-align:center">балів зі 150 можливих</p>
+  <h2 id="rank" style="text-align:center"></h2>
+  <p id="message" style="text-align:center;line-height:1.6"></p>
+  <div class="info" id="resultInfo"></div>
+  <br>
+  <button class="primary" onclick="restartGame()">🔄 ПРОЙТИ ЩЕ РАЗ</button>
+</section>
+
+<footer>
+  Навчальний квест за матеріалами підручника «Інформатика. 6 клас»<br>
+  Тема: «Растрова графіка. Графічний редактор GIMP»
+</footer>
+</div>
+
+<script>
+
+// БАНК ЗАПИТАНЬ
+const questions = [
+
+{
+ station:"🧩 Станція 1. Піксельна лабораторія",
+ q:"Що вивчає комп'ютерна графіка?",
+ a:[
+  "Створення та опрацювання зображень за допомогою комп'ютера",
+  "Роботу з текстовими документами",
+  "Створення музичних композицій",
+  "Програмування роботів"
+ ],
+ correct:0,
+ explain:"Комп'ютерна графіка — розділ інформатики, що вивчає методи створення й опрацювання зображень."
+},
+
+{
+ station:"🧩 Станція 1. Піксельна лабораторія",
+ q:"З яких елементів складається растрове зображення?",
+ a:["Із геометричних фігур","Із пікселів","Із текстових символів","Із математичних формул"],
+ correct:1,
+ explain:"Растрове зображення складається з маленьких точок — пікселів."
+},
+
+{
+ station:"🧩 Станція 1. Піксельна лабораторія",
+ q:"Що таке піксель?",
+ a:[
+  "Найменший елемент растрового зображення",
+  "Назва графічного редактора",
+  "Формат фотографії",
+  "Інструмент для малювання"
+ ],
+ correct:0,
+ explain:"Піксель — найменший елемент растрового зображення. Кожен піксель може мати один колір."
+},
+
+{
+ station:"🎨 Станція 2. Таємниця зображення",
+ q:"Яке зображення найкраще підходить для растрової графіки?",
+ a:["Фотографія","Математична формула","Текстова команда","Список чисел"],
+ correct:0,
+ explain:"Растрова графіка широко використовується для фотографій і сканованих зображень."
+},
+
+{
+ station:"🎨 Станція 2. Таємниця зображення",
+ q:"Що відбувається з якістю растрового зображення при значному збільшенні?",
+ a:[
+  "Якість завжди покращується",
+  "Зображення може стати нечітким і піксельним",
+  "Зображення перетворюється на текст",
+  "Нічого не змінюється"
+ ],
+ correct:1,
+ explain:"При збільшенні растрового зображення можуть ставати помітними окремі пікселі."
+},
+
+{
+ station:"🎨 Станція 2. Таємниця зображення",
+ q:"Від чого залежить деталізація растрового зображення?",
+ a:[
+  "Від кількості пікселів",
+  "Від назви файлу",
+  "Від кольору рамки вікна",
+  "Від швидкості клавіатури"
+ ],
+ correct:0,
+ explain:"Чим більше пікселів, тим більше деталей можна передати."
+},
+
+{
+ station:"🖥️ Станція 3. Штаб GIMP",
+ q:"Що таке GIMP?",
+ a:[
+  "Текстовий редактор",
+  "Растровий графічний редактор",
+  "Браузер",
+  "Антивірус"
+ ],
+ correct:1,
+ explain:"GIMP — багатоплатформний растровий графічний редактор, який вільно поширюється."
+},
+
+{
+ station:"🖥️ Станція 3. Штаб GIMP",
+ q:"Для чого використовують GIMP?",
+ a:[
+  "Для створення колажів, малювання та опрацювання фотографій",
+  "Лише для написання текстів",
+  "Для створення електронних таблиць",
+  "Для перегляду вебсайтів"
+ ],
+ correct:0,
+ explain:"GIMP дозволяє покращувати фотографії, створювати колажі та малювати."
+},
+
+{
+ station:"🖥️ Станція 3. Штаб GIMP",
+ q:"Де розташовані кнопки інструментів GIMP?",
+ a:[
+  "На панелі інструментів",
+  "У назві файлу",
+  "На робочому столі Windows",
+  "У меню принтера"
+ ],
+ correct:0,
+ explain:"На панелі інструментів розміщені кнопки для вибору потрібних інструментів."
+},
+
+{
+ station:"✂️ Станція 4. Майстерня кадрування",
+ q:"Який інструмент GIMP використовують для обрізання зайвих частин фотографії?",
+ a:["Заливка","Кадрування","Текст","Пензель"],
+ correct:1,
+ explain:"Інструмент «Кадрування» дозволяє залишити потрібну частину зображення."
+},
+
+{
+ station:"✂️ Станція 4. Майстерня кадрування",
+ q:"Як змінити масштаб перегляду зображення в GIMP за допомогою миші?",
+ a:[
+  "Натиснути Ctrl і прокрутити коліщатко миші",
+  "Натиснути Enter",
+  "Двічі натиснути пробіл",
+  "Натиснути Alt і закрити програму"
+ ],
+ correct:0,
+ explain:"Для зміни масштабу перегляду використовують Ctrl та коліщатко миші."
+},
+
+{
+ station:"✂️ Станція 4. Майстерня кадрування",
+ q:"Як скасувати останню дію в GIMP?",
+ a:[
+  "Файл → Зберегти",
+  "Зміни → Скасувати",
+  "Вікна → Закрити",
+  "Файл → Експортувати"
+ ],
+ correct:1,
+ explain:"Команда «Зміни → Скасувати» дозволяє повернутися до попереднього стану."
+},
+
+{
+ station:"💾 Станція 5. Файловий портал",
+ q:"Який формат є спеціальним робочим форматом GIMP?",
+ a:["JPG","PNG","XCF","GIF"],
+ correct:2,
+ explain:"XCF — власний формат GIMP, який використовують для збереження робочих проєктів."
+},
+
+{
+ station:"💾 Станція 5. Файловий портал",
+ q:"Які формати можна використовувати для експорту готового растрового зображення?",
+ a:["PNG і JPG","DOCX і XLSX","MP3 і WAV","EXE і BAT"],
+ correct:0,
+ explain:"PNG і JPG — популярні формати для збереження готових растрових зображень."
+},
+
+{
+ station:"💾 Станція 5. Файловий портал",
+ q:"Що потрібно зробити, щоб експортувати готову роботу у формат PNG?",
+ a:[
+  "Файл → Зберегти",
+  "Файл → Експортувати як...",
+  "Зміни → Скасувати",
+  "Вікна → Діалоги"
+ ],
+ correct:1,
+ explain:"Для експорту зображення використовують команду «Файл → Експортувати як...», після чого вибирають формат PNG."
+}
+
+];
+
+// СТАН ГРИ
+let current = 0;
+let points = 0;
+let answered = false;
+let correctCount = 0;
+
+function startGame() {
+ document.getElementById("start").classList.add("hidden");
+ document.getElementById("game").classList.remove("hidden");
+ showQuestion();
+}
+
+function showQuestion() {
+ answered = false;
+ const item = questions[current];
+
+ document.getElementById("stationName").textContent = item.station;
+ document.getElementById("counter").textContent =
+  `Завдання ${current+1} із ${questions.length}`;
+
+ document.getElementById("question").textContent = item.q;
+ document.getElementById("score").textContent = points;
+
+ document.getElementById("bar").style.width =
+  (current/questions.length*100)+"%";
+
+ const box = document.getElementById("answers");
+ box.innerHTML = "";
+
+ document.getElementById("feedback").style.display = "none";
+ document.getElementById("next").classList.add("hidden");
+
+ item.a.forEach((answer,index) => {
+  const btn = document.createElement("button");
+  btn.className = "answer";
+  btn.textContent = ["А","Б","В","Г"][index] + ". " + answer;
+  btn.onclick = () => checkAnswer(index,btn);
+  box.appendChild(btn);
+ });
+}
+
+function checkAnswer(index,button) {
+ if(answered) return;
+ answered = true;
+
+ const item = questions[current];
+ const buttons = document.querySelectorAll(".answer");
+
+ buttons.forEach((btn,i) => {
+  btn.disabled = true;
+  if(i === item.correct) btn.classList.add("correct");
+ });
+
+ const feedback = document.getElementById("feedback");
+ feedback.style.display = "block";
+
+ if(index === item.correct) {
+  points += 10;
+  correctCount++;
+  feedback.style.background = "#176b50";
+  feedback.innerHTML = "✅ <b>Правильно! +10 балів.</b><br>" + item.explain;
+ } else {
+  button.classList.add("wrong");
+  feedback.style.background = "#713c4c";
+  feedback.innerHTML = "❌ <b>Не зовсім правильно.</b><br>" + item.explain;
+ }
+
+ document.getElementById("score").textContent = points;
+ document.getElementById("next").classList.remove("hidden");
+
+ if(current === questions.length-1) {
+  document.getElementById("next").textContent = "ЗАВЕРШИТИ КВЕСТ 🏆";
+ }
+}
+
+function nextQuestion() {
+ if(!answered) return;
+
+ current++;
+
+ if(current >= questions.length) {
+  finishGame();
+ } else {
+  document.getElementById("next").textContent = "НАСТУПНЕ ЗАВДАННЯ →";
+  showQuestion();
+ }
+}
+
+function finishGame() {
+ document.getElementById("game").classList.add("hidden");
+ document.getElementById("finish").classList.remove("hidden");
+
+ document.getElementById("bar").style.width = "100%";
+ document.getElementById("finalScore").textContent = points;
+
+ let rank = "";
+ let message = "";
+
+ if(points >= 140) {
+  rank = "👑 Майстер GIMP!";
+  message = "Неймовірно! Ти чудово знаєш растрову графіку та можливості GIMP.";
+ } else if(points >= 110) {
+  rank = "🏆 Експерт пікселів!";
+  message = "Чудова робота! Ти впевнено орієнтуєшся у світі комп'ютерної графіки.";
+ } else if(points >= 80) {
+  rank = "⭐ Цифровий дослідник!";
+  message = "Гарний результат! Ще трохи практики — і ти станеш майстром.";
+ } else if(points >= 50) {
+  rank = "🔍 Початківець GIMP!";
+  message = "Ти вже зробив перші кроки. Повтори матеріал і спробуй ще раз!";
+ } else {
+  rank = "🎮 Піксельний учень!";
+  message = "Не зупиняйся! Повернися до параграфа та пройди квест повторно.";
+ }
+
+ document.getElementById("rank").textContent = rank;
+ document.getElementById("message").textContent = message;
+
+ document.getElementById("resultInfo").innerHTML =
+  "Правильних відповідей: <b>"+correctCount+
+  " із "+questions.length+"</b><br>"+
+  "Набрано балів: <b>"+points+" із 150</b><br>"+
+  "Відсоток виконання: <b>"+
+  Math.round(correctCount/questions.length*100)+"%</b>";
+}
+
+function restartGame() {
+ current = 0;
+ points = 0;
+ correctCount = 0;
+
+ document.getElementById("finish").classList.add("hidden");
+ document.getElementById("game").classList.remove("hidden");
+
+ document.getElementById("next").textContent = "НАСТУПНЕ ЗАВДАННЯ →";
+ showQuestion();
+}
+
+</script>
+</body>
+</html>
